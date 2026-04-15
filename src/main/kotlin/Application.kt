@@ -17,6 +17,7 @@ import org.delcom.helpers.JWTConstants
 import org.delcom.helpers.configureDatabases
 import org.delcom.module.appModule
 import org.koin.ktor.plugin.Koin
+import java.net.URI
 
 fun main(args: Array<String>) {
     val dotenv = dotenv {
@@ -29,6 +30,40 @@ fun main(args: Array<String>) {
     }
 
     EngineMain.main(args)
+}
+
+private fun Application.configureCors() {
+    val allowedHosts = System.getProperty("CORS_ALLOWED_HOSTS")
+        ?.split(",")
+        ?.map { it.trim() }
+        ?.filter { it.isNotBlank() }
+        .orEmpty()
+
+    install(CORS) {
+        allowMethod(HttpMethod.Options)
+        allowMethod(HttpMethod.Get)
+        allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Put)
+        allowMethod(HttpMethod.Delete)
+
+        allowHeader(HttpHeaders.Authorization)
+        allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Accept)
+        allowHeader(HttpHeaders.Origin)
+
+        exposeHeader(HttpHeaders.Authorization)
+        allowNonSimpleContentTypes = true
+        maxAgeInSeconds = 3600
+
+        if (allowedHosts.isEmpty()) {
+            anyHost()
+        } else {
+            allowedHosts.forEach { origin ->
+                val uri = URI(origin)
+                allowHost(uri.authority, schemes = listOf(uri.scheme))
+            }
+        }
+    }
 }
 
 fun Application.module() {
@@ -69,9 +104,7 @@ fun Application.module() {
         }
     }
 
-    install(CORS) {
-        anyHost()
-    }
+    configureCors()
 
     install(ContentNegotiation) {
         json(
